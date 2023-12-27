@@ -3,9 +3,9 @@ package drlp
 // Buffer is essentially a byte slice. It holds encoded elements.
 type Buffer []byte
 
-// Reset resets all content.
-func (b *Buffer) Reset() {
-	*b = (*b)[:0]
+// Truncate truncates the buffer to size.
+func (b *Buffer) Truncate(size int) {
+	*b = (*b)[:size]
 }
 
 // PutUint puts the uint value.
@@ -34,6 +34,19 @@ func (b *Buffer) PutString(str []byte) {
 		*b = appendUint(*b, uint64(size), 0xB7)
 		*b = append(*b, str...)
 	}
+}
+
+// PutFunc puts the string value returned by func build.
+// The build func should not modify existing content of buf,
+// and should follow the behavior like append.
+func (b *Buffer) PutFunc(build func(buf []byte) []byte) {
+	offset := len(*b)
+	// make room for string header
+	*b = append(*b, make([]byte, 9)...)
+	*b = build(*b)
+	str := (*b)[offset+9:]
+	b.Truncate(offset)
+	b.PutString(str)
 }
 
 // List starts a RLP list.

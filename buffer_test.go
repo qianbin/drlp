@@ -121,10 +121,22 @@ func encode(v interface{}, b *Buffer) {
 func TestBuffer(t *testing.T) {
 	var buf Buffer
 	for i, tt := range tests {
-		buf.Reset()
+		buf.Truncate(0)
 		encode(tt.val, &buf)
 		if got := strings.ToUpper(hex.EncodeToString(buf)); got != tt.want {
 			t.Errorf("#%v: got %v, want %v", i, got, tt.want)
 		}
 	}
+}
+
+func TestBuffer_PutFunc(t *testing.T) {
+	var buf Buffer
+	buf.PutFunc(func(buf []byte) []byte {
+		return append(buf, "Lorem ipsum dolor sit amet, consectetur adipisicing eli"...)
+	})
+	want := "B74C6F72656D20697073756D20646F6C6F722073697420616D65742C20636F6E7365637465747572206164697069736963696E6720656C69"
+	if got := strings.ToUpper(hex.EncodeToString(buf)); got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+
 }
