@@ -1,62 +1,55 @@
 package drlp
 
-// Buffer is essentially a byte slice. It holds encoded elements.
-type Buffer []byte
-
-// Truncate truncates the buffer to size.
-func (b *Buffer) Truncate(size int) {
-	*b = (*b)[:size]
-}
-
-// PutUint puts the uint value.
-func (b *Buffer) PutUint(i uint64) {
+// AppendUint appends RLP-encoded i to buf and returns the extended buffer.
+func AppendUint(buf []byte, i uint64) []byte {
 	if i == 0 {
-		*b = append(*b, 0x80)
+		return append(buf, 0x80)
 	} else if i < 128 {
 		// fits single byte
-		*b = append(*b, byte(i))
+		return append(buf, byte(i))
 	} else {
-		*b = appendUint(*b, i, 0x80)
+		return appendUintWithTag(buf, i, 0x80)
 	}
 }
 
-// PutString puts the string value.
-func (b *Buffer) PutString(str []byte) {
+// AppendString appends RLP-encoded str to buf and returns the extended buffer.
+func AppendString(buf, str []byte) []byte {
 	if size := len(str); size == 0 {
-		*b = append(*b, 0x80)
+		return append(buf, 0x80)
 	} else if size == 1 && str[0] < 128 {
 		// fits single byte, no string header
-		*b = append(*b, str[0])
+		return append(buf, str[0])
 	} else if size < 56 {
-		*b = append(*b, 0x80+byte(size))
-		*b = append(*b, str...)
+		buf = append(buf, 0x80+byte(size))
+		return append(buf, str...)
 	} else {
-		*b = appendUint(*b, uint64(size), 0xB7)
-		*b = append(*b, str...)
+		buf = appendUintWithTag(buf, uint64(size), 0xB7)
+		return append(buf, str...)
 	}
 }
 
-// PutFunc puts the string value returned by func build.
-// The build func should not modify existing content of buf,
-// and should follow the behavior like append.
-func (b *Buffer) PutFunc(build func(buf []byte) []byte) {
-	offset := len(*b)
-	// make room for string header
-	*b = append(*b, make([]byte, 9)...)
-	*b = build(*b)
-	str := (*b)[offset+9:]
-	b.Truncate(offset)
-	b.PutString(str)
-}
-
-// List starts a RLP list.
-func (b *Buffer) List() List {
-	return List{b, len(*b)}
+// EndList ends up list starting from offset and returns the extended buffer.
+// Content after offset is treated as list content.
+func EndList(buf []byte, offset int) []byte {
+	contentSize := len(buf) - offset
+	if contentSize < 56 {
+		// shift the content for room of list header
+		buf = append(buf[:offset+1], buf[offset:]...)
+		// write list header
+		buf[offset] = 0xC0 + byte(contentSize)
+	} else {
+		headerSize := uintSize(uint64(contentSize)) + 1
+		// shift the content for room of list header
+		buf = append(buf[:offset+headerSize], buf[offset:]...)
+		// write list header
+		appendUintWithTag(buf[:offset], uint64(contentSize), 0xF7)
+	}
+	return buf
 }
 
 // appendUint appends kind tag and i to b in big endian byte order,
 // using the least number of bytes needed to represent i.
-func appendUint(b []byte, i uint64, kindTag byte) []byte {
+func appendUintWithTag(b []byte, i uint64, kindTag byte) []byte {
 	switch {
 	case i < (1 << 8):
 		return append(b, kindTag+1, byte(i))

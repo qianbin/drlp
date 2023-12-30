@@ -3,6 +3,7 @@ package drlp
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -97,46 +98,54 @@ var tests = []test{
 		"F90200CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376"},
 }
 
-func encode(v interface{}, b *Buffer) {
+func encode(buf []byte, v interface{}) []byte {
 	switch v := v.(type) {
 	case []interface{}:
-		l := b.List()
+		offset := len(buf)
 		for _, c := range v {
-			encode(c, b)
+			buf = encode(buf, c)
 		}
-		l.End()
+		return EndList(buf, offset)
 	case int:
-		b.PutUint(uint64(v))
+		return AppendUint(buf, uint64(v))
 	case uint64:
-		b.PutUint(v)
+		return AppendUint(buf, v)
 	case []byte:
-		b.PutString(v)
+		return AppendString(buf, v)
 	case string:
-		b.PutString([]byte(v))
+		return AppendString(buf, []byte(v))
 	default:
 		panic(errors.New("unexpected value type"))
 	}
 }
 
 func TestBuffer(t *testing.T) {
-	var buf Buffer
+	var buf []byte
 	for i, tt := range tests {
-		buf.Truncate(0)
-		encode(tt.val, &buf)
+		buf = encode(buf[:0], tt.val)
 		if got := strings.ToUpper(hex.EncodeToString(buf)); got != tt.want {
 			t.Errorf("#%v: got %v, want %v", i, got, tt.want)
 		}
 	}
 }
 
-func TestBuffer_PutFunc(t *testing.T) {
-	var buf Buffer
-	buf.PutFunc(func(buf []byte) []byte {
-		return append(buf, "Lorem ipsum dolor sit amet, consectetur adipisicing eli"...)
-	})
-	want := "B74C6F72656D20697073756D20646F6C6F722073697420616D65742C20636F6E7365637465747572206164697069736963696E6720656C69"
-	if got := strings.ToUpper(hex.EncodeToString(buf)); got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
+func ExampleAppend() {
+	var buf []byte
+	buf = AppendUint(buf, 10)
+	buf = AppendString(buf, []byte("hello drlp"))
 
+	fmt.Printf("%x\n", buf)
+	// Output: 0a8a68656c6c6f2064726c70
+}
+
+func ExampleEndList() {
+	var buf []byte
+	buf = AppendString(buf, []byte("followed by a list"))
+
+	offset := len(buf)
+	buf = AppendString(buf, []byte("list content"))
+	buf = EndList(buf, offset)
+
+	fmt.Printf("%x\n", buf[offset:])
+	// Output: cd8c6c69737420636f6e74656e74
 }

@@ -19,29 +19,25 @@ go get github.com/qianbin/drlp
 
 Number and string 
 ```go
-var buf drlp.Buffer
-
-buf.PutUint(10)
-buf.PutString([]byte("hello drlp"))
+var buf []byte
+buf = drlp.AppendUint(buf, 10)
+buf = drlp.AppendString(buf, []byte("hello drlp"))
 
 fmt.Printf("%x\n", buf)
-// 0a8a68656c6c6f2064726c70
+// Output: 0a8a68656c6c6f2064726c70
 ```
 
 List
 ```go
-var buf drlp.Buffer
+var buf []byte
+buf = drlp.AppendString(buf, []byte("followed by a list"))
 
-buf.PutString([]byte("this is a list"))
+offset := len(buf)
+buf = drlp.AppendString(buf, []byte("list content"))
+buf = drlp.EndList(buf, offset)
 
-li := buf.List()
-buf.PutString([]byte("lis content"))
-encodedList := li.End()
-
-fmt.Printf("%x\n", encodedList)
-// cc8b6c697320636f6e74656e74
-fmt.Printf("%x\n", buf)
-// 8e746869732069732061206c697374cc8b6c697320636f6e74656e74
+fmt.Printf("%x\n", buf[offset:])
+// Output: cd8c6c69737420636f6e74656e74
 ```
 
 ## License
