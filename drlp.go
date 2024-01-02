@@ -32,7 +32,9 @@ func AppendString(buf, str []byte) []byte {
 // Content after offset is treated as list content.
 func EndList(buf []byte, offset int) []byte {
 	contentSize := len(buf) - offset
-	if contentSize < 56 {
+	if contentSize == 0 {
+		buf = append(buf, 0xC0)
+	} else if contentSize < 56 {
 		// shift the content for room of list header
 		buf = append(buf[:offset+1], buf[offset:]...)
 		// write list header
@@ -47,7 +49,7 @@ func EndList(buf []byte, offset int) []byte {
 	return buf
 }
 
-// appendUint appends kind tag and i to b in big endian byte order,
+// appendUintWithTag appends kind tag and i to b in big endian byte order,
 // using the least number of bytes needed to represent i.
 func appendUintWithTag(b []byte, i uint64, kindTag byte) []byte {
 	switch {

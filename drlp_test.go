@@ -120,9 +120,8 @@ func encode(buf []byte, v interface{}) []byte {
 }
 
 func TestBuffer(t *testing.T) {
-	var buf []byte
 	for i, tt := range tests {
-		buf = encode(buf[:0], tt.val)
+		buf := encode(nil, tt.val)
 		if got := strings.ToUpper(hex.EncodeToString(buf)); got != tt.want {
 			t.Errorf("#%v: got %v, want %v", i, got, tt.want)
 		}
